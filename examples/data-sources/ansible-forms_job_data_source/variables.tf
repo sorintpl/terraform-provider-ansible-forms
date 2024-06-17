@@ -1,1 +1,1 @@
-../../provider/variables.tf
+C:/Users/msera/go/terraform-provider-ansible-forms/examples/provider/variables.tf
