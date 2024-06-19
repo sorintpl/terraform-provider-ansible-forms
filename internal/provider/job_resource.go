@@ -255,7 +255,7 @@ func (r *JobResource) Create(ctx context.Context, req resource.CreateRequest, re
 	elements := map[string]attr.Value{}
 
 	for key, value := range job.Data.Extravars {
-		elements[key] = types.StringValue(value)
+		elements[key] = types.StringValue(fmt.Sprintf("%s", value))
 	}
 
 	data.ID = types.Int64Value(job.Data.ID)
@@ -267,7 +267,7 @@ func (r *JobResource) Create(ctx context.Context, req resource.CreateRequest, re
 	data.Output = types.StringValue(job.Data.Output)
 	data.Counter = types.Int64Value(job.Data.Counter)
 	data.NoOfRecords = types.Int64Value(job.Data.NoOfRecords)
-	data.Approval = types.StringValue(job.Data.Approval)
+	data.Approval = types.StringValue(fmt.Sprintf("%s", job.Data.Approval))
 
 	tflog.Debug(ctx, "JOB ID", map[string]interface{}{"ID": job.Data.ID, "DATA": data})
 
@@ -336,8 +336,8 @@ func (r *JobResource) Read(ctx context.Context, req resource.ReadRequest, resp *
 	if job.End != "" {
 		data.End = types.StringValue(job.End)
 	}
-	if job.Approval != "" {
-		data.Approval = types.StringValue(job.Approval)
+	if job.Approval != nil {
+		data.Approval = types.StringValue(fmt.Sprintf("%s", job.Approval))
 	}
 
 	// Write logs using the tflog package

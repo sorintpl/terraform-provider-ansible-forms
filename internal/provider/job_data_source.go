@@ -36,7 +36,7 @@ type JobDataSourceModel struct {
 	LastUpdated   types.String                `tfsdk:"last_updated"`
 	FormName      types.String                `tfsdk:"form_name"`
 	Status        types.String                `tfsdk:"status"`
-	Extravars     types.Map                   `tfsdk:"extravars"`
+	Extravars     types.Dynamic               `tfsdk:"extravars"`
 	Credentials   *CredentialsDataSourceModel `tfsdk:"credentials"`
 	Target        types.String                `tfsdk:"target"`
 	Output        types.String                `tfsdk:"output"`
@@ -79,9 +79,8 @@ func (d *JobDataSource) Schema(ctx context.Context, req datasource.SchemaRequest
 				MarkdownDescription: "",
 				Computed:            true,
 			},
-			"extravars": schema.MapAttribute{
-				MarkdownDescription: "",
-				ElementType:         types.StringType,
+			"extravars": schema.DynamicAttribute{
+				MarkdownDescription: "Extra Vars.",
 				Computed:            true,
 			},
 			"credentials": schema.SingleNestedAttribute{
@@ -173,19 +172,19 @@ func (d *JobDataSource) Read(ctx context.Context, req datasource.ReadRequest, re
 		return
 	}
 
-	if restInfo != nil && &restInfo.Extravars != nil {
+	if restInfo != nil {
 		data.ID = types.Int64Value(restInfo.ID)
 		data.FormName = types.StringValue(restInfo.Form)
 		data.Status = types.StringValue(restInfo.Status)
-		data.Credentials.CifsCred = types.StringValue(restInfo.Credentials.CifsCred)
-		data.Credentials.OntapCred = types.StringValue(restInfo.Credentials.OntapCred)
+		//data.Credentials.CifsCred = types.StringValue(restInfo.Credentials.CifsCred)
+		//data.Credentials.OntapCred = types.StringValue(restInfo.Credentials.OntapCred)
 		data.Target = types.StringValue(restInfo.Target)
 		data.Output = types.StringValue(restInfo.Output)
 		data.Counter = types.Int64Value(restInfo.Counter)
 		data.NoOfRecords = types.Int64Value(restInfo.NoOfRecords)
 		data.Start = types.StringValue(restInfo.Start)
 		data.End = types.StringValue(restInfo.End)
-		data.Approval = types.StringValue(restInfo.Approval)
+		data.Approval = types.StringValue(fmt.Sprintf("%s", restInfo.Approval))
 	}
 
 	// Write logs using the tflog package
