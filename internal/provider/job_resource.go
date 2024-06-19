@@ -3,9 +3,7 @@ package provider
 import (
 	"context"
 	"fmt"
-	"strconv"
-	"time"
-
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
@@ -13,12 +11,11 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-
 	"terraform-provider-ansible-forms/internal/interfaces"
 	"terraform-provider-ansible-forms/internal/utils"
+	"time"
 )
 
-// Ensure the implementation satisfies the expected interfaces.
 // Ensure the implementation satisfies the expected interfaces.
 var (
 	_ resource.Resource              = &JobResource{}
@@ -41,20 +38,27 @@ type JobResource struct {
 
 // JobResourceModel maps the resource schema data.
 type JobResourceModel struct {
-	CxProfileName types.String `tfsdk:"cx_profile_name"`
-	ID            types.String `tfsdk:"id"`
-	LastUpdated   types.String `tfsdk:"last_updated"`
-	FormName      types.String `tfsdk:"form_name"`
-	Status        types.String `tfsdk:"status"`
-	Extravars     types.Map    `tfsdk:"extravars"`
-	Credentials   types.Map    `tfsdk:"credentials"`
-	Target        types.String `tfsdk:"target"`
-	Output        types.String `tfsdk:"output"`
-	Counter       types.Int64  `tfsdk:"counter"`
-	NoOfRecords   types.Int64  `tfsdk:"no_of_records"`
-	Start         types.String `tfsdk:"start"`
-	End           types.String `tfsdk:"end"`
-	Approval      types.String `tfsdk:"approval"`
+	CxProfileName types.String                `tfsdk:"cx_profile_name"`
+	ID            types.Int64                 `tfsdk:"id"`
+	LastUpdated   types.String                `tfsdk:"last_updated"`
+	FormName      types.String                `tfsdk:"form_name"`
+	Status        types.String                `tfsdk:"status"`
+	Extravars     types.Map                   `tfsdk:"extravars"`
+	Credentials   *CredentialsDataSourceModel `tfsdk:"credentials"`
+	Target        types.String                `tfsdk:"target"`
+	Output        types.String                `tfsdk:"output"`
+	Counter       types.Int64                 `tfsdk:"counter"`
+	NoOfRecords   types.Int64                 `tfsdk:"no_of_records"`
+	Start         types.String                `tfsdk:"start"`
+	End           types.String                `tfsdk:"end"`
+	Approval      types.String                `tfsdk:"approval"`
+	State         types.String                `tfsdk:"state"`
+}
+
+// CredentialsDataSourceModel maps the resource schema data.
+type CredentialsDataSourceModel struct {
+	CifsCred  types.String `tfsdk:"cifs_cred"`
+	OntapCred types.String `tfsdk:"ontap_cred"`
 }
 
 // JobResourceModelCredentials ...
@@ -83,22 +87,31 @@ func (r *JobResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 				Required:            true,
 				MarkdownDescription: "Form name of a job.",
 			},
+			"id": schema.Int64Attribute{
+				Computed: true,
+				PlanModifiers: []planmodifier.Int64{
+					int64planmodifier.UseStateForUnknown(),
+				},
+				MarkdownDescription: "ID of a job.",
+			},
 			"extravars": schema.MapAttribute{
-				Required:            true,
+				Optional:            true,
 				ElementType:         types.StringType,
 				MarkdownDescription: "Extra vars of a job.",
 			},
-			"credentials": schema.MapAttribute{
-				Required:            true,
-				ElementType:         types.StringType,
-				MarkdownDescription: "Credentials of a job.",
-			},
-			"id": schema.StringAttribute{
-				Computed: true,
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.UseStateForUnknown(),
+			"credentials": schema.SingleNestedAttribute{
+				Required: true,
+				Attributes: map[string]schema.Attribute{
+					"ontap_cred": schema.StringAttribute{
+						MarkdownDescription: "",
+						Required:            true,
+					},
+					"cifs_cred": schema.StringAttribute{
+						MarkdownDescription: "",
+						Required:            true,
+					},
 				},
-				MarkdownDescription: "ID of a job.",
+				MarkdownDescription: "Credentials of a job.",
 			},
 			"last_updated": schema.StringAttribute{
 				Computed: true,
@@ -163,6 +176,10 @@ func (r *JobResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 				},
 				MarkdownDescription: "Approval of a job.",
 			},
+			"state": schema.StringAttribute{
+				Description: "State.",
+				Computed:    true,
+			},
 		},
 	}
 }
@@ -176,7 +193,7 @@ func (r *JobResource) Configure(_ context.Context, req resource.ConfigureRequest
 	config, ok := req.ProviderData.(Config)
 	if !ok {
 		resp.Diagnostics.AddError(
-			"Unexpected  Resource Configure Type",
+			"Unexpected Resource Configure Type",
 			fmt.Sprintf("Expected Config, got: %T. Please report this issue to the provider developers.", req.ProviderData),
 		)
 	}
@@ -186,18 +203,17 @@ func (r *JobResource) Configure(_ context.Context, req resource.ConfigureRequest
 // Create a new resource.
 func (r *JobResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var data *JobResourceModel
-	errorHandler := utils.NewErrorHandler(ctx, &resp.Diagnostics)
 
 	// Read Terraform plan data into the model
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
+
+	var request interfaces.JobResourceModel
+	errorHandler := utils.NewErrorHandler(ctx, &resp.Diagnostics)
+
 	if resp.Diagnostics.HasError() {
 		tflog.Debug(ctx, "error getting req plan")
 		return
 	}
-
-	var request interfaces.JobResourceModel
-	request.Form = data.FormName.ValueString()
-	//request.Extravars = data.Extravars.Elements()
 
 	client, err := getRestClient(errorHandler, r.config, data.CxProfileName)
 	if err != nil {
@@ -205,22 +221,51 @@ func (r *JobResource) Create(ctx context.Context, req resource.CreateRequest, re
 		return
 	}
 
+	request.Start = data.Start.ValueString()
+	request.End = data.End.ValueString()
+
+	var extravars = make(map[string]interface{})
+	for k, v := range data.Extravars.Elements() {
+		extravars[k] = v
+	}
+
+	request.Extravars = extravars
+	request.Credentials.CifsCred = data.Credentials.CifsCred.ValueString()
+	request.Credentials.OntapCred = data.Credentials.OntapCred.ValueString()
+	request.Form = data.FormName.ValueString()
+	request.Status = data.Status.ValueString()
+	request.Target = data.Target.ValueString()
+	request.NoOfRecords = data.NoOfRecords.ValueInt64()
+	request.Counter = data.Counter.ValueInt64()
+	request.Output = data.Output.ValueString()
+	request.End = data.End.ValueString()
+	request.ID = data.ID.ValueInt64()
+	request.LastUpdated = data.LastUpdated.ValueString()
+	request.State = fmt.Sprintf("present")
+
 	job, err := interfaces.CreateJob(errorHandler, *client, request)
 	if err != nil {
 		tflog.Debug(ctx, "err creating a resource", map[string]interface{}{"err": err})
 		return
 	}
 
-	data.ID = types.StringValue(strconv.FormatInt(job.Data.ID, 10))
+	elements := map[string]attr.Value{}
+
+	for key, value := range job.Data.Extravars {
+		elements[key] = types.StringValue(value)
+	}
+
+	data.ID = types.Int64Value(job.Data.ID)
+	data.Start = types.StringValue(job.Data.Start)
+	data.End = types.StringValue(job.Data.End)
 	data.Status = types.StringValue(job.Data.Status)
 	data.LastUpdated = types.StringValue(time.Now().UTC().Format(time.RFC3339))
 	data.Target = types.StringValue(job.Data.Target)
 	data.Output = types.StringValue(job.Data.Output)
 	data.Counter = types.Int64Value(job.Data.Counter)
 	data.NoOfRecords = types.Int64Value(job.Data.NoOfRecords)
-	data.Start = types.StringValue(job.Data.Start)
-	data.End = types.StringValue(job.Data.End)
 	data.Approval = types.StringValue(job.Data.Approval)
+	data.State = types.StringValue(job.Data.State)
 
 	tflog.Debug(ctx, "JOB ID", map[string]interface{}{"ID": job.Data.ID, "DATA": data})
 
@@ -248,8 +293,8 @@ func (r *JobResource) Read(ctx context.Context, req resource.ReadRequest, resp *
 	tflog.Debug(ctx, fmt.Sprintf("read a job resource: %#v", data))
 
 	var job *interfaces.JobGetDataSourceModel
-	if data.ID.ValueString() != "" {
-		job, err = interfaces.GetJobByID(errorHandler, *client, data.ID.ValueString())
+	if data.ID.ValueInt64() != 0 {
+		job, err = interfaces.GetJobByID(errorHandler, *client, data.ID.ValueInt64())
 	} else {
 		return
 	}
@@ -261,7 +306,7 @@ func (r *JobResource) Read(ctx context.Context, req resource.ReadRequest, resp *
 		return
 	}
 
-	data.ID = types.StringValue(strconv.FormatInt(job.ID, 10))
+	data.ID = types.Int64Value(job.ID)
 
 	if job.Form != "" {
 		data.FormName = types.StringValue(job.Form)
@@ -330,7 +375,7 @@ func (r *JobResource) Delete(ctx context.Context, req resource.DeleteRequest, re
 		// error reporting done inside NewClient
 		return
 	}
-	err = interfaces.DeleteJobByID(errorHandler, *client, data.ID.ValueString())
+	err = interfaces.DeleteJobByID(errorHandler, *client, data.ID.ValueInt64())
 	if err != nil {
 		return
 	}

@@ -2,9 +2,9 @@ package interfaces
 
 import (
 	"fmt"
-
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/mitchellh/mapstructure"
+	"log"
 
 	"terraform-provider-ansible-forms/internal/restclient"
 	"terraform-provider-ansible-forms/internal/utils"
@@ -12,44 +12,70 @@ import (
 
 // JobResourceModel describes the resource data model.
 type JobResourceModel struct {
-	ID          int64          `mapstructure:"id"`
-	Start       string         `mapstructure:"start"`
-	End         string         `mapstructure:"end"`
-	User        string         `mapstructure:"user"`
-	UserType    string         `mapstructure:"user_type"`
-	JobType     string         `mapstructure:"job_type"`
-	Extravars   map[string]any `mapstructure:"extravars"`
-	Credentials map[string]any `mapstructure:"credentials"`
-	Form        string         `mapstructure:"formName"`
-	Status      string         `mapstructure:"status"`
-	Message     string         `mapstructure:"message"`
-	Target      string         `mapstructure:"target"`
-	NoOfRecords int64          `mapstructure:"no_of_records"`
-	Counter     int64          `mapstructure:"counter"`
-	Output      string         `mapstructure:"output"`
-	Data        string         `mapstructure:"data"`
-	Approval    string         `mapstructure:"approval"`
+	ID          int64                  `mapstructure:"id"`
+	Start       string                 `mapstructure:"start"`
+	End         string                 `mapstructure:"end"`
+	User        string                 `mapstructure:"user"`
+	UserType    string                 `mapstructure:"user_type"`
+	JobType     string                 `mapstructure:"job_type"`
+	Extravars   map[string]interface{} `mapstructure:"extravars"`
+	Credentials CredentialsDataModel   `mapstructure:"credentials"`
+	Form        string                 `mapstructure:"formName"`
+	Status      string                 `mapstructure:"status"`
+	Message     string                 `mapstructure:"message"`
+	Target      string                 `mapstructure:"target"`
+	NoOfRecords int64                  `mapstructure:"no_of_records"`
+	Counter     int64                  `mapstructure:"counter"`
+	Output      string                 `mapstructure:"output"`
+	Data        string                 `mapstructure:"data"`
+	LastUpdated string                 `mapstructure:"last_updated"`
+	Approval    string                 `mapstructure:"approval"`
+	State       string                 `mapstructure:"state"`
+}
+
+// ExtravarsBodyDataModel describes the data source of Protocols
+type ExtravarsBodyDataModel struct {
+	Accountid          string `mapstructure:"accountid"`
+	ConfigStandard     string `mapstructure:"config_standard"`
+	Dataclass          string `mapstructure:"dataclass"`
+	Env                string `mapstructure:"env"`
+	Exposure           string `mapstructure:"exposure"`
+	Opco               string `mapstructure:"opco"`
+	ProtectionRequired string `mapstructure:"protection_required"`
+	Region             string `mapstructure:"region"`
+	ShareName          string `mapstructure:"share_name"`
+	Size               string `mapstructure:"size"`
+	SvmName            string `mapstructure:"svm_name"`
+	ExportPolicy       string `mapstructure:"export_policy"`
+	VolumeComment      string `mapstructure:"volume_comment"`
+}
+
+// CredentialsDataModel describes data model
+type CredentialsDataModel struct {
+	CifsCred  string `mapstructure:"cifs_cred"`
+	OntapCred string `mapstructure:"ontap_cred"`
 }
 
 // JobGetDataSourceModel ...
 type JobGetDataSourceModel struct {
-	ID          int64  `mapstructure:"id"`
-	Start       string `mapstructure:"start"`
-	End         string `mapstructure:"end"`
-	User        string `mapstructure:"user"`
-	UserType    string `mapstructure:"user_type"`
-	JobType     string `mapstructure:"job_type"`
-	Extravars   string `mapstructure:"extravars"`
-	Credentials string `mapstructure:"credentials"`
-	Form        string `mapstructure:"formName"`
-	Status      string `mapstructure:"status"`
-	Message     string `mapstructure:"message"`
-	Target      string `mapstructure:"target"`
-	NoOfRecords int64  `mapstructure:"no_of_records"`
-	Counter     int64  `mapstructure:"counter"`
-	Output      string `mapstructure:"output"`
-	Data        string `mapstructure:"data"`
-	Approval    string `mapstructure:"approval"`
+	ID          int64                `mapstructure:"id"`
+	Start       string               `mapstructure:"start"`
+	End         string               `mapstructure:"end"`
+	User        string               `mapstructure:"user"`
+	UserType    string               `mapstructure:"user_type"`
+	JobType     string               `mapstructure:"job_type"`
+	Extravars   map[string]string    `mapstructure:"extravars"`
+	Credentials CredentialsDataModel `mapstructure:"credentials"`
+	Form        string               `mapstructure:"formName"`
+	Status      string               `mapstructure:"status"`
+	Message     string               `mapstructure:"message"`
+	Target      string               `mapstructure:"target"`
+	NoOfRecords int64                `mapstructure:"no_of_records"`
+	Counter     int64                `mapstructure:"counter"`
+	Output      string               `mapstructure:"output"`
+	Data        string               `mapstructure:"data"`
+	Approval    string               `mapstructure:"approval"`
+	State       string               `mapstructure:"state"`
 }
 
 // GetJobResponse describes GET job response.
@@ -72,8 +98,11 @@ type CreateJobResponse struct {
 }
 
 // GetJobByID gets job info by id.
-func GetJobByID(errorHandler *utils.ErrorHandler, r restclient.RestClient, id string) (*JobGetDataSourceModel, error) {
-	statusCode, response, err := r.GetNilOrOneRecord("job/"+id, nil, nil)
+func GetJobByID(errorHandler *utils.ErrorHandler, r restclient.RestClient, id int64) (*JobGetDataSourceModel, error) {
+	statusCode, response, err := r.GetNilOrOneRecord(fmt.Sprintf("job/%d", id), nil, nil)
+	if err == nil && response["message"] == "failed to find job" {
+		err = fmt.Errorf("no response for GET Job by ID")
+	}
 	if err != nil {
 		return nil, errorHandler.MakeAndReportError("error reading job info", fmt.Sprintf("error on GET job/: %s, statusCode %d", err, statusCode))
 	}
@@ -96,6 +125,13 @@ func CreateJob(errorHandler *utils.ErrorHandler, r restclient.RestClient, data J
 		return nil, errorHandler.MakeAndReportError("error encoding job body", fmt.Sprintf("error on encoding POST job/ body: %s, body: %#v", err, data))
 	}
 
+	body["extravars"] = make(map[string]any)
+
+	for key, value := range data.Extravars {
+		log.Printf("key: %s value: %s\n", key, value)
+		body["extravars"].(map[string]any)[key] = fmt.Sprintf("%s", value)
+	}
+
 	statusCode, response, err := r.CallCreateMethod("job/", nil, body) // Ansible Forms API does not allow querying.
 	if err != nil {
 		return nil, errorHandler.MakeAndReportError("error creating job", fmt.Sprintf("error on POST job/: %s, statusCode %d", err, statusCode))
@@ -111,8 +147,8 @@ func CreateJob(errorHandler *utils.ErrorHandler, r restclient.RestClient, data J
 }
 
 // DeleteJobByID deletes a job by ID.
-func DeleteJobByID(errorHandler *utils.ErrorHandler, r restclient.RestClient, id string) error {
-	statusCode, _, err := r.CallDeleteMethod("job/"+id, nil, nil)
+func DeleteJobByID(errorHandler *utils.ErrorHandler, r restclient.RestClient, id int64) error {
+	statusCode, _, err := r.CallDeleteMethod(fmt.Sprintf("job/%d", id), nil, nil)
 	if err != nil {
 		return errorHandler.MakeAndReportError("error deleting job info", fmt.Sprintf("error on DELETE job/: %s, statusCode %d", err, statusCode))
 	}
