@@ -18,6 +18,7 @@ resource "ansible-forms_job_resource" "job" {
     ontap_cred = "myontap_cred"
     cifs_cred  = "mycifs_cred"
   }
+#   state = "absent"
 }
 
 output "ansible-forms_job_resource" {

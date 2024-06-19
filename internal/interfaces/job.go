@@ -69,7 +69,6 @@ type JobGetDataSourceModel struct {
 	Credentials CredentialsDataModel   `mapstructure:"credentials"`
 	Form        string                 `mapstructure:"formName"`
 	Status      string                 `mapstructure:"status"`
-	Message     string                 `mapstructure:"message"`
 	Target      string                 `mapstructure:"target"`
 	NoOfRecords int64                  `mapstructure:"no_of_records"`
 	Counter     int64                  `mapstructure:"counter"`
@@ -77,6 +76,7 @@ type JobGetDataSourceModel struct {
 	Data        string                 `mapstructure:"data"`
 	Approval    map[string]interface{} `mapstructure:"approval"`
 	State       string                 `mapstructure:"state"`
+	Error       string                 `mapstructure:"error"`
 }
 
 // GetJobResponse describes GET job response.
@@ -146,9 +146,14 @@ func CreateJob(errorHandler *utils.ErrorHandler, r restclient.RestClient, data J
 	if err != nil {
 		return nil, errorHandler.MakeAndReportError("failed to retrieve response from GET job/", fmt.Sprintf("error: %s, status %s, response %#v", err, status, response))
 	}
+
 	tflog.Debug(errorHandler.Ctx, fmt.Sprintf("Create svm source - udata: %#v", jobData))
 
-	return &GetJobResponse{Data: *jobData}, nil
+	return &GetJobResponse{
+		Status:  resp.Status,
+		Message: resp.Message,
+		Data:    *jobData,
+	}, nil
 }
 
 // DeleteJobByID deletes a job by ID.

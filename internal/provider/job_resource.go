@@ -54,6 +54,8 @@ type JobResourceModel struct {
 	End           types.String                `tfsdk:"end"`
 	Approval      types.String                `tfsdk:"approval"`
 	State         types.String                `tfsdk:"state"`
+	Message       types.String                `tfsdk:"message"`
+	Error         types.String                `tfsdk:"error"`
 }
 
 // CredentialsDataSourceModel maps the resource schema data.
@@ -183,6 +185,17 @@ func (r *JobResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 				Optional:    true,
 				Default:     stringdefault.StaticString("present"),
 			},
+			"message": schema.StringAttribute{
+				Description: "Message of a job.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
+				Computed: true,
+			},
+			"error": schema.StringAttribute{
+				Description: "Error of a job.",
+				Computed:    true,
+			},
 		},
 	}
 }
@@ -268,6 +281,8 @@ func (r *JobResource) Create(ctx context.Context, req resource.CreateRequest, re
 	data.Counter = types.Int64Value(job.Data.Counter)
 	data.NoOfRecords = types.Int64Value(job.Data.NoOfRecords)
 	data.Approval = types.StringValue(fmt.Sprintf("%s", job.Data.Approval))
+	data.Message = types.StringValue(job.Message)
+	data.Error = types.StringValue(job.Data.Error)
 
 	tflog.Debug(ctx, "JOB ID", map[string]interface{}{"ID": job.Data.ID, "DATA": data})
 
