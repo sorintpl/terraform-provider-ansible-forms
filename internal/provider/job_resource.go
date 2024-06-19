@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
@@ -179,6 +180,8 @@ func (r *JobResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 			"state": schema.StringAttribute{
 				Description: "State.",
 				Computed:    true,
+				Optional:    true,
+				Default:     stringdefault.StaticString("present"),
 			},
 		},
 	}
@@ -241,7 +244,7 @@ func (r *JobResource) Create(ctx context.Context, req resource.CreateRequest, re
 	request.End = data.End.ValueString()
 	request.ID = data.ID.ValueInt64()
 	request.LastUpdated = data.LastUpdated.ValueString()
-	request.State = fmt.Sprintf("present")
+	request.State = data.State.ValueString()
 
 	job, err := interfaces.CreateJob(errorHandler, *client, request)
 	if err != nil {
@@ -265,7 +268,6 @@ func (r *JobResource) Create(ctx context.Context, req resource.CreateRequest, re
 	data.Counter = types.Int64Value(job.Data.Counter)
 	data.NoOfRecords = types.Int64Value(job.Data.NoOfRecords)
 	data.Approval = types.StringValue(job.Data.Approval)
-	data.State = types.StringValue(job.Data.State)
 
 	tflog.Debug(ctx, "JOB ID", map[string]interface{}{"ID": job.Data.ID, "DATA": data})
 
