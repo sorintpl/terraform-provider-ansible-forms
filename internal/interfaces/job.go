@@ -2,9 +2,10 @@ package interfaces
 
 import (
 	"fmt"
+	"log"
+
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/mitchellh/mapstructure"
-	"log"
 
 	"terraform-provider-ansible-forms/internal/restclient"
 	"terraform-provider-ansible-forms/internal/utils"
@@ -132,18 +133,22 @@ func CreateJob(errorHandler *utils.ErrorHandler, r restclient.RestClient, data J
 		body["extravars"].(map[string]any)[key] = fmt.Sprintf("%s", value)
 	}
 
-	statusCode, response, err := r.CallCreateMethod("job/", nil, body) // Ansible Forms API does not allow querying.
+	status, response, err := r.CallCreateMethod("job/", nil, body) // Ansible Forms API does not allow querying.
 	if err != nil {
-		return nil, errorHandler.MakeAndReportError("error creating job", fmt.Sprintf("error on POST job/: %s, statusCode %d", err, statusCode))
+		return nil, errorHandler.MakeAndReportError("error creating job", fmt.Sprintf("error on POST job/: %s, status %v", err, status))
 	}
 
 	var resp *CreateJobResponse
 	if err = mapstructure.Decode(response.Records[0], &resp); err != nil {
-		return nil, errorHandler.MakeAndReportError("failed to decode response from POST job/", fmt.Sprintf("error: %s, statusCode %d, response %#v", err, statusCode, response))
+		return nil, errorHandler.MakeAndReportError("failed to decode response from POST job/", fmt.Sprintf("error: %s, status %s, response %#v", err, status, response))
 	}
-	tflog.Debug(errorHandler.Ctx, fmt.Sprintf("Create svm source - udata: %#v", resp))
+	jobData, err := GetJobByID(errorHandler, r, resp.Data.Output.ID)
+	if err != nil {
+		return nil, errorHandler.MakeAndReportError("failed to retrieve response from GET job/", fmt.Sprintf("error: %s, status %s, response %#v", err, status, response))
+	}
+	tflog.Debug(errorHandler.Ctx, fmt.Sprintf("Create svm source - udata: %#v", jobData))
 
-	return &GetJobResponse{Data: JobGetDataSourceModel{ID: resp.Data.Output.ID, Status: resp.Status}}, nil
+	return &GetJobResponse{Data: *jobData}, nil
 }
 
 // DeleteJobByID deletes a job by ID.

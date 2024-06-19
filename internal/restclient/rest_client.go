@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
 	"net/url"
 	"strings"
 	"time"
@@ -12,6 +13,13 @@ import (
 	"github.com/mitchellh/mapstructure"
 
 	"terraform-provider-ansible-forms/internal/restclient/httpclient"
+)
+
+const (
+	CheckLoopInterval    = 15 * time.Second
+	CheckLoopTimeout     = 3 * time.Minute
+	AnsibleStatusSuccess = "success"
+	AnsibleStatusFailure = "error" // failure was not returned but maybe because of testing
 )
 
 // ConnectionProfile describes out to reach a cluster or svm.
@@ -67,7 +75,7 @@ func NewClient(ctx context.Context, cxProfile ConnectionProfile, tag string, job
 }
 
 // CallCreateMethod returns response from POST results.  An error is reported if an error is received.
-func (r *RestClient) CallCreateMethod(baseURL string, query *RestQuery, body map[string]any) (int, RestResponse, error) {
+func (r *RestClient) CallCreateMethod(baseURL string, query *RestQuery, body map[string]any) (string, RestResponse, error) {
 	if query == nil {
 		query = r.NewQuery()
 	}
@@ -76,24 +84,36 @@ func (r *RestClient) CallCreateMethod(baseURL string, query *RestQuery, body map
 	statusCode, response, err := r.callAPIMethod("POST", baseURL, query, body)
 	if err != nil {
 		tflog.Debug(r.ctx, fmt.Sprintf("CallCreateMethod request failed %#v", statusCode))
-		return statusCode, RestResponse{}, err
+		return "", RestResponse{}, err
 	}
 
-	if response.Job != nil {
-		statusCode, _, err = r.Wait(response.Job["uuid"].(string))
-		if err != nil {
-			return statusCode, RestResponse{}, err
-		}
-	} else if response.Jobs != nil {
-		for _, v := range response.Jobs {
-			statusCode, _, err = r.Wait(v["uuid"].(string))
+	status := "running"
+	resp_id := response.Records[0]["data"].(map[string]any)["output"].(map[string]any)["id"]
+	id, _ := big.NewFloat(resp_id.(float64)).Int64()
+check:
+	for {
+		select {
+		case <-time.After(CheckLoopInterval):
+			statusCode, restInfo, err := r.GetNilOrOneRecord(fmt.Sprintf("job/%d", id), nil, nil)
 			if err != nil {
-				return statusCode, RestResponse{}, err
+				return "", RestResponse{}, fmt.Errorf("error on GET job/%d: %s, statusCode %d", id, err, statusCode)
 			}
+			status = restInfo["status"].(string)
+			// are there other statuses possible?
+			if status == AnsibleStatusSuccess {
+				break check
+			} else if status == AnsibleStatusFailure {
+				return "", RestResponse{}, fmt.Errorf("when checking job status, Ansible returned failure")
+			} else {
+				return "", RestResponse{}, fmt.Errorf("status was different than expected - %+v", status)
+			}
+		case <-time.After(CheckLoopTimeout):
+			tflog.Debug(r.ctx, "job status check timed-out")
+			return "", RestResponse{}, fmt.Errorf("timed-out while checking job status")
 		}
 	}
 
-	return statusCode, response, err
+	return status, response, err
 }
 
 // CallUpdateMethod returns response from PATCH results.  An error is reported if an error is received.
