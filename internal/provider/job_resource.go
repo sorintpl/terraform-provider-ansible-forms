@@ -259,15 +259,8 @@ func (r *JobResource) Create(ctx context.Context, req resource.CreateRequest, re
 		request.Credentials.OntapCred = data.Credentials.OntapCred.ValueString()
 	}
 
+	request.CxProfileName = data.CxProfileName.ValueString()
 	request.Form = data.FormName.ValueString()
-	request.Status = data.Status.ValueString()
-	request.Target = data.Target.ValueString()
-	request.NoOfRecords = data.NoOfRecords.ValueInt64()
-	request.Counter = data.Counter.ValueInt64()
-	request.Output = data.Output.ValueString()
-	request.End = data.End.ValueString()
-	request.ID = data.ID.ValueInt64()
-	request.LastUpdated = data.LastUpdated.ValueString()
 	request.State = data.State.ValueString()
 
 	job, err := interfaces.CreateJob(errorHandler, *client, request)

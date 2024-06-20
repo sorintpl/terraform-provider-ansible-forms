@@ -12,25 +12,26 @@ import (
 
 // JobResourceModel describes the resource data model.
 type JobResourceModel struct {
-	ID          int64                  `mapstructure:"id"`
-	Start       string                 `mapstructure:"start"`
-	End         string                 `mapstructure:"end"`
-	User        string                 `mapstructure:"user"`
-	UserType    string                 `mapstructure:"user_type"`
-	JobType     string                 `mapstructure:"job_type"`
-	Extravars   map[string]interface{} `mapstructure:"extravars"`
-	Credentials CredentialsDataModel   `mapstructure:"credentials"`
-	Form        string                 `mapstructure:"formName"`
-	Status      string                 `mapstructure:"status"`
-	Message     string                 `mapstructure:"message"`
-	Target      string                 `mapstructure:"target"`
-	NoOfRecords int64                  `mapstructure:"no_of_records"`
-	Counter     int64                  `mapstructure:"counter"`
-	Output      string                 `mapstructure:"output"`
-	Data        string                 `mapstructure:"data"`
-	LastUpdated string                 `mapstructure:"last_updated"`
-	Approval    string                 `mapstructure:"approval"`
-	State       string                 `mapstructure:"state"`
+	ID            int64                  `mapstructure:"id"`
+	Start         string                 `mapstructure:"start"`
+	End           string                 `mapstructure:"end"`
+	User          string                 `mapstructure:"user"`
+	UserType      string                 `mapstructure:"user_type"`
+	JobType       string                 `mapstructure:"job_type"`
+	Extravars     map[string]interface{} `mapstructure:"extravars"`
+	Credentials   CredentialsDataModel   `mapstructure:"credentials"`
+	Form          string                 `mapstructure:"formName"`
+	Status        string                 `mapstructure:"status"`
+	Message       string                 `mapstructure:"message"`
+	Target        string                 `mapstructure:"target"`
+	NoOfRecords   int64                  `mapstructure:"no_of_records"`
+	Counter       int64                  `mapstructure:"counter"`
+	Output        string                 `mapstructure:"output"`
+	Data          string                 `mapstructure:"data"`
+	LastUpdated   string                 `mapstructure:"last_updated"`
+	Approval      string                 `mapstructure:"approval"`
+	State         string                 `mapstructure:"state"`
+	CxProfileName string                 `mapstructure:"cx_profile_name"`
 }
 
 // ExtravarsBodyDataModel describes the data source of Protocols
