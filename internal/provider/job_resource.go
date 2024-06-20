@@ -376,6 +376,54 @@ func (r *JobResource) Read(ctx context.Context, req resource.ReadRequest, resp *
 
 // Update updates the resource and sets the updated Terraform state on success.
 func (r *JobResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
+	var data *JobResourceModel
+
+	// Read Terraform plan data into the model
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
+
+	var request interfaces.JobResourceModel
+	errorHandler := utils.NewErrorHandler(ctx, &resp.Diagnostics)
+
+	if resp.Diagnostics.HasError() {
+		tflog.Debug(ctx, "error getting req plan")
+		return
+	}
+
+	client, err := getRestClient(errorHandler, r.config, data.CxProfileName)
+	if err != nil {
+		// error reporting done inside NewClient
+		return
+	}
+
+	var extravars = make(map[string]interface{})
+	for k, v := range data.Extravars.Elements() {
+		extravars[k] = v
+	}
+
+	request.Extravars = extravars
+	request.Credentials.CifsCred = data.Credentials.CifsCred.ValueString()
+	request.Credentials.OntapCred = data.Credentials.OntapCred.ValueString()
+	request.Form = data.FormName.ValueString()
+	request.State = data.State.ValueString()
+
+	job, err := interfaces.CreateJob(errorHandler, *client, request)
+	if err != nil {
+		tflog.Debug(ctx, "err creating/updating a resource", map[string]interface{}{"err": err})
+		return
+	}
+
+	elements := map[string]attr.Value{}
+
+	for key, value := range job.Data.Extravars {
+		elements[key] = types.StringValue(fmt.Sprintf("%s", value))
+	}
+
+	data.Error = types.StringValue(job.Data.Error)
+
+	tflog.Debug(ctx, "JOB ID", map[string]interface{}{"ID": job.Data.ID, "DATA": data})
+
+	tflog.Trace(ctx, "update/create a resource")
+	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 
 // Delete deletes the resource and removes the Terraform state on success.
