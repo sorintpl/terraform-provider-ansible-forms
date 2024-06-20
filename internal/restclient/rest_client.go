@@ -18,6 +18,7 @@ import (
 const (
 	CheckLoopInterval    = 15 * time.Second
 	CheckLoopTimeout     = 180 * time.Second
+	AnsibleStatusRunning = "info"
 	AnsibleStatusSuccess = "success"
 	AnsibleStatusFailure = "error" // failure was not returned but maybe because of testing
 )
@@ -87,7 +88,7 @@ func (r *RestClient) CallCreateMethod(baseURL string, query *RestQuery, body map
 		return "", RestResponse{}, err
 	}
 
-	status := "running"
+	status := AnsibleStatusRunning
 	resp_id := response.Records[0]["data"].(map[string]any)["output"].(map[string]any)["id"]
 	id, _ := big.NewFloat(resp_id.(float64)).Int64()
 	timeOutTimer := time.NewTimer(CheckLoopTimeout)
@@ -100,11 +101,14 @@ check:
 				return "", RestResponse{}, fmt.Errorf("error on GET job/%d: %s, statusCode %d", id, err, statusCode)
 			}
 			status = restInfo["status"].(string)
-			if status == AnsibleStatusSuccess {
+			switch status {
+			case AnsibleStatusRunning:
+				continue
+			case AnsibleStatusSuccess:
 				break check
-			} else if status == AnsibleStatusFailure {
+			case AnsibleStatusFailure:
 				return "", RestResponse{}, fmt.Errorf("when checking job status, Ansible returned failure")
-			} else {
+			default:
 				return "", RestResponse{}, fmt.Errorf("when checking job status, Ansible returned an unexpected status - %s", status)
 			}
 		case <-timeOutTimer.C:
