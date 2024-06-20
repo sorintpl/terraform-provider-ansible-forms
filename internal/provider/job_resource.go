@@ -106,15 +106,15 @@ func (r *JobResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 				MarkdownDescription: "Extra vars of a job.",
 			},
 			"credentials": schema.SingleNestedAttribute{
-				Required: true,
+				Optional: true,
 				Attributes: map[string]schema.Attribute{
 					"ontap_cred": schema.StringAttribute{
 						MarkdownDescription: "",
-						Required:            true,
+						Optional:            true,
 					},
 					"cifs_cred": schema.StringAttribute{
 						MarkdownDescription: "",
-						Required:            true,
+						Optional:            true,
 					},
 				},
 				MarkdownDescription: "Credentials of a job.",
@@ -252,8 +252,13 @@ func (r *JobResource) Create(ctx context.Context, req resource.CreateRequest, re
 	}
 
 	request.Extravars = extravars
-	request.Credentials.CifsCred = data.Credentials.CifsCred.ValueString()
-	request.Credentials.OntapCred = data.Credentials.OntapCred.ValueString()
+	if data.Credentials.CifsCred.ValueString() != "" {
+		request.Credentials.CifsCred = data.Credentials.CifsCred.ValueString()
+	}
+	if data.Credentials.OntapCred.ValueString() != "" {
+		request.Credentials.OntapCred = data.Credentials.OntapCred.ValueString()
+	}
+
 	request.Form = data.FormName.ValueString()
 	request.Status = data.Status.ValueString()
 	request.Target = data.Target.ValueString()
