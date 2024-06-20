@@ -3,6 +3,11 @@ package provider
 import (
 	"context"
 	"fmt"
+	"terraform-provider-ansible-forms/internal/interfaces"
+	"terraform-provider-ansible-forms/internal/utils"
+	"time"
+
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -10,11 +15,9 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"terraform-provider-ansible-forms/internal/interfaces"
-	"terraform-provider-ansible-forms/internal/utils"
-	"time"
 )
 
 // Ensure the implementation satisfies the expected interfaces.
@@ -184,6 +187,9 @@ func (r *JobResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 				Computed:    true,
 				Optional:    true,
 				Default:     stringdefault.StaticString("present"),
+				Validators: []validator.String{
+					stringvalidator.OneOf([]string{"present", "absent"}...),
+				},
 			},
 			"message": schema.StringAttribute{
 				Description: "Message of a job.",
