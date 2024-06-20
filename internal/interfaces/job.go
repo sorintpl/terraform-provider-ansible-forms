@@ -2,10 +2,9 @@ package interfaces
 
 import (
 	"fmt"
-	"log"
-
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/mitchellh/mapstructure"
+	"strings"
 
 	"terraform-provider-ansible-forms/internal/restclient"
 	"terraform-provider-ansible-forms/internal/utils"
@@ -126,12 +125,14 @@ func CreateJob(errorHandler *utils.ErrorHandler, r restclient.RestClient, data J
 		return nil, errorHandler.MakeAndReportError("error encoding job body", fmt.Sprintf("error on encoding POST job/ body: %s, body: %#v", err, data))
 	}
 
-	body["extravars"] = make(map[string]any)
+	extravarsMap := make(map[string]string)
 
 	for key, value := range data.Extravars {
-		log.Printf("key: %s value: %s\n", key, value)
-		body["extravars"].(map[string]any)[key] = fmt.Sprintf("%s", value)
+		value = strings.Replace(fmt.Sprintf("%s", value), "\"", "", -1)
+		extravarsMap[key] = fmt.Sprintf("%s", value)
 	}
+
+	body["extravars"] = extravarsMap
 
 	status, response, err := r.CallCreateMethod("job/", nil, body) // Ansible Forms API does not allow querying.
 	if err != nil {
