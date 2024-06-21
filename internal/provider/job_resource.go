@@ -249,11 +249,13 @@ func (r *JobResource) Create(ctx context.Context, req resource.CreateRequest, re
 	}
 
 	request.Extravars = extravars
-	if data.Credentials.CifsCred.ValueString() != "" {
-		request.Credentials.CifsCred = data.Credentials.CifsCred.ValueString()
-	}
-	if data.Credentials.OntapCred.ValueString() != "" {
-		request.Credentials.OntapCred = data.Credentials.OntapCred.ValueString()
+	if data.Credentials != nil {
+		if data.Credentials.CifsCred.ValueString() != "" {
+			request.Credentials.CifsCred = data.Credentials.CifsCred.ValueString()
+		}
+		if data.Credentials.OntapCred.ValueString() != "" {
+			request.Credentials.OntapCred = data.Credentials.OntapCred.ValueString()
+		}
 	}
 
 	request.CxProfileName = data.CxProfileName.ValueString()
