@@ -240,9 +240,6 @@ func (r *JobResource) Create(ctx context.Context, req resource.CreateRequest, re
 		return
 	}
 
-	request.Start = data.Start.ValueString()
-	request.End = data.End.ValueString()
-
 	var extravars = make(map[string]interface{})
 	for k, v := range data.Extravars.Elements() {
 		extravars[k] = v
@@ -393,8 +390,15 @@ func (r *JobResource) Update(ctx context.Context, req resource.UpdateRequest, re
 	}
 
 	request.Extravars = extravars
-	request.Credentials.CifsCred = data.Credentials.CifsCred.ValueString()
-	request.Credentials.OntapCred = data.Credentials.OntapCred.ValueString()
+	if data.Credentials != nil {
+		if data.Credentials.CifsCred.ValueString() != "" {
+			request.Credentials.CifsCred = data.Credentials.CifsCred.ValueString()
+		}
+		if data.Credentials.OntapCred.ValueString() != "" {
+			request.Credentials.OntapCred = data.Credentials.OntapCred.ValueString()
+		}
+	}
+
 	request.Form = data.FormName.ValueString()
 	request.State = data.State.ValueString()
 
@@ -443,8 +447,32 @@ func (r *JobResource) Delete(ctx context.Context, req resource.DeleteRequest, re
 		// error reporting done inside NewClient
 		return
 	}
-	err = interfaces.DeleteJobByID(errorHandler, *client, data.ID.ValueInt64())
+
+	var extravars = make(map[string]interface{})
+	for k, v := range data.Extravars.Elements() {
+		extravars[k] = v
+	}
+
+	extravars["state"] = "absent"
+
+	var request interfaces.JobResourceModel
+	request.Extravars = extravars
+	if data.Credentials != nil {
+		if data.Credentials.CifsCred.ValueString() != "" {
+			request.Credentials.CifsCred = data.Credentials.CifsCred.ValueString()
+		}
+		if data.Credentials.OntapCred.ValueString() != "" {
+			request.Credentials.OntapCred = data.Credentials.OntapCred.ValueString()
+		}
+	}
+
+	request.CxProfileName = data.CxProfileName.ValueString()
+	request.Form = data.FormName.ValueString()
+	request.State = "absent"
+
+	_, err = interfaces.CreateJob(errorHandler, *client, request)
 	if err != nil {
+		tflog.Debug(ctx, "err delete a resource", map[string]interface{}{"err": err})
 		return
 	}
 }
