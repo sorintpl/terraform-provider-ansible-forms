@@ -94,10 +94,7 @@ func (r *JobResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 				MarkdownDescription: "Form name of a job.",
 			},
 			"id": schema.Int64Attribute{
-				Computed: true,
-				PlanModifiers: []planmodifier.Int64{
-					int64planmodifier.UseStateForUnknown(),
-				},
+				Computed:            true,
 				MarkdownDescription: "ID of a job.",
 			},
 			"extravars": schema.MapAttribute{
