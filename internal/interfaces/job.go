@@ -2,9 +2,10 @@ package interfaces
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 	"github.com/mitchellh/mapstructure"
-	"strings"
 
 	"terraform-provider-ansible-forms/internal/restclient"
 	"terraform-provider-ansible-forms/internal/utils"
@@ -19,7 +20,7 @@ type JobResourceModel struct {
 	UserType      string                 `mapstructure:"user_type"`
 	JobType       string                 `mapstructure:"job_type"`
 	Extravars     map[string]interface{} `mapstructure:"extravars"`
-	Credentials   CredentialsDataModel   `mapstructure:"credentials"`
+	Credentials   *CredentialsDataModel  `mapstructure:"credentials"`
 	Form          string                 `mapstructure:"formName"`
 	Status        string                 `mapstructure:"status"`
 	Message       string                 `mapstructure:"message"`

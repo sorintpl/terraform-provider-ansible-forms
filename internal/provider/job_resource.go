@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
 )
 
@@ -247,12 +248,13 @@ func (r *JobResource) Create(ctx context.Context, req resource.CreateRequest, re
 
 	request.Extravars = extravars
 	if data.Credentials != nil {
-		if data.Credentials.CifsCred.ValueString() != "" {
-			request.Credentials.CifsCred = data.Credentials.CifsCred.ValueString()
+		request.Credentials = &interfaces.CredentialsDataModel{
+			CifsCred:  data.Credentials.CifsCred.ValueString(),
+			OntapCred: data.Credentials.OntapCred.ValueString(),
 		}
-		if data.Credentials.OntapCred.ValueString() != "" {
-			request.Credentials.OntapCred = data.Credentials.OntapCred.ValueString()
-		}
+	}
+	if data.Credentials == nil || (data.Credentials.CifsCred.ValueString() == "" && data.Credentials.OntapCred.ValueString() == "") {
+		request.Credentials = nil
 	}
 
 	request.CxProfileName = data.CxProfileName.ValueString()
@@ -391,12 +393,13 @@ func (r *JobResource) Update(ctx context.Context, req resource.UpdateRequest, re
 
 	request.Extravars = extravars
 	if data.Credentials != nil {
-		if data.Credentials.CifsCred.ValueString() != "" {
-			request.Credentials.CifsCred = data.Credentials.CifsCred.ValueString()
+		request.Credentials = &interfaces.CredentialsDataModel{
+			CifsCred:  data.Credentials.CifsCred.ValueString(),
+			OntapCred: data.Credentials.OntapCred.ValueString(),
 		}
-		if data.Credentials.OntapCred.ValueString() != "" {
-			request.Credentials.OntapCred = data.Credentials.OntapCred.ValueString()
-		}
+	}
+	if data.Credentials == nil || (data.Credentials.CifsCred.ValueString() == "" && data.Credentials.OntapCred.ValueString() == "") {
+		request.Credentials = nil
 	}
 
 	request.Form = data.FormName.ValueString()
@@ -407,6 +410,7 @@ func (r *JobResource) Update(ctx context.Context, req resource.UpdateRequest, re
 		tflog.Debug(ctx, "err creating/updating a resource", map[string]interface{}{"err": err})
 		return
 	}
+	data.ID = basetypes.NewInt64Value(job.Data.ID)
 
 	elements := map[string]attr.Value{}
 
@@ -458,12 +462,13 @@ func (r *JobResource) Delete(ctx context.Context, req resource.DeleteRequest, re
 	var request interfaces.JobResourceModel
 	request.Extravars = extravars
 	if data.Credentials != nil {
-		if data.Credentials.CifsCred.ValueString() != "" {
-			request.Credentials.CifsCred = data.Credentials.CifsCred.ValueString()
+		request.Credentials = &interfaces.CredentialsDataModel{
+			CifsCred:  data.Credentials.CifsCred.ValueString(),
+			OntapCred: data.Credentials.OntapCred.ValueString(),
 		}
-		if data.Credentials.OntapCred.ValueString() != "" {
-			request.Credentials.OntapCred = data.Credentials.OntapCred.ValueString()
-		}
+	}
+	if data.Credentials == nil || (data.Credentials.CifsCred.ValueString() == "" && data.Credentials.OntapCred.ValueString() == "") {
+		request.Credentials = nil
 	}
 
 	request.CxProfileName = data.CxProfileName.ValueString()
