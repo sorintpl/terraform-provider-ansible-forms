@@ -246,6 +246,8 @@ func (r *JobResource) Create(ctx context.Context, req resource.CreateRequest, re
 		extravars[k] = v
 	}
 
+	extravars["state"] = data.State.ValueString()
+
 	request.Extravars = extravars
 	if data.Credentials != nil {
 		request.Credentials = &interfaces.CredentialsDataModel{
@@ -390,6 +392,8 @@ func (r *JobResource) Update(ctx context.Context, req resource.UpdateRequest, re
 	for k, v := range data.Extravars.Elements() {
 		extravars[k] = v
 	}
+
+	extravars["state"] = data.State.ValueString()
 
 	request.Extravars = extravars
 	if data.Credentials != nil {
