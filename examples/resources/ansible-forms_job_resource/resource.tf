@@ -15,10 +15,10 @@ resource "ansible-forms_job_resource" "job" {
     some_custom_property = "property"
   }
   credentials = {
-    ontap_cred = "myontap_cred"
-    cifs_cred  = "mycifs_cred"
+#     ontap_cred = "myontap_cred"
+#     cifs_cred  = "mycifs_cred"
+#     user       = "some_user"
   }
-#   state = "absent"
 }
 
 output "ansible-forms_job_resource" {

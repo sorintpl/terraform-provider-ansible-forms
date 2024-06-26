@@ -20,7 +20,7 @@ type JobResourceModel struct {
 	UserType      string                 `mapstructure:"user_type"`
 	JobType       string                 `mapstructure:"job_type"`
 	Extravars     map[string]interface{} `mapstructure:"extravars"`
-	Credentials   *CredentialsDataModel  `mapstructure:"credentials"`
+	Credentials   map[string]interface{} `mapstructure:"credentials"`
 	Form          string                 `mapstructure:"formName"`
 	Status        string                 `mapstructure:"status"`
 	Message       string                 `mapstructure:"message"`
@@ -71,8 +71,6 @@ type JobGetDataSourceModel struct {
 	Form        string                 `mapstructure:"formName"`
 	Status      string                 `mapstructure:"status"`
 	Target      string                 `mapstructure:"target"`
-	NoOfRecords int64                  `mapstructure:"no_of_records"`
-	Counter     int64                  `mapstructure:"counter"`
 	Output      string                 `mapstructure:"output"`
 	Data        string                 `mapstructure:"data"`
 	Approval    map[string]interface{} `mapstructure:"approval"`
@@ -128,13 +126,20 @@ func CreateJob(errorHandler *utils.ErrorHandler, r restclient.RestClient, data J
 	}
 
 	extravarsMap := make(map[string]string)
-
 	for key, value := range data.Extravars {
 		value = strings.Replace(fmt.Sprintf("%s", value), "\"", "", -1)
 		extravarsMap[key] = fmt.Sprintf("%s", value)
 	}
 
 	body["extravars"] = extravarsMap
+
+	credentialsMap := make(map[string]string)
+	for key, value := range data.Credentials {
+		value = strings.Replace(fmt.Sprintf("%s", value), "\"", "", -1)
+		credentialsMap[key] = fmt.Sprintf("%s", value)
+	}
+
+	body["credentials"] = credentialsMap
 
 	status, response, err := r.CallCreateMethod("job/", nil, body) // Ansible Forms API does not allow querying.
 	if err != nil {

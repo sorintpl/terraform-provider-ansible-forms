@@ -11,7 +11,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringdefault"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
@@ -43,35 +42,21 @@ type JobResource struct {
 
 // JobResourceModel maps the resource schema data.
 type JobResourceModel struct {
-	CxProfileName types.String                `tfsdk:"cx_profile_name"`
-	ID            types.Int64                 `tfsdk:"id"`
-	LastUpdated   types.String                `tfsdk:"last_updated"`
-	FormName      types.String                `tfsdk:"form_name"`
-	Status        types.String                `tfsdk:"status"`
-	Extravars     types.Map                   `tfsdk:"extravars"`
-	Credentials   *CredentialsDataSourceModel `tfsdk:"credentials"`
-	Target        types.String                `tfsdk:"target"`
-	Output        types.String                `tfsdk:"output"`
-	Counter       types.Int64                 `tfsdk:"counter"`
-	NoOfRecords   types.Int64                 `tfsdk:"no_of_records"`
-	Start         types.String                `tfsdk:"start"`
-	End           types.String                `tfsdk:"end"`
-	Approval      types.String                `tfsdk:"approval"`
-	State         types.String                `tfsdk:"state"`
-	Message       types.String                `tfsdk:"message"`
-	Error         types.String                `tfsdk:"error"`
-}
-
-// CredentialsDataSourceModel maps the resource schema data.
-type CredentialsDataSourceModel struct {
-	CifsCred  types.String `tfsdk:"cifs_cred"`
-	OntapCred types.String `tfsdk:"ontap_cred"`
-}
-
-// JobResourceModelCredentials ...
-type JobResourceModelCredentials struct {
-	OntapCred types.String `tfsdk:"ontap_cred"`
-	BindCred  types.String `tfsdk:"bind_cred"`
+	CxProfileName types.String `tfsdk:"cx_profile_name"`
+	ID            types.Int64  `tfsdk:"id"`
+	LastUpdated   types.String `tfsdk:"last_updated"`
+	FormName      types.String `tfsdk:"form_name"`
+	Status        types.String `tfsdk:"status"`
+	Extravars     types.Map    `tfsdk:"extravars"`
+	Credentials   types.Map    `tfsdk:"credentials"`
+	Target        types.String `tfsdk:"target"`
+	Output        types.String `tfsdk:"output"`
+	Start         types.String `tfsdk:"start"`
+	End           types.String `tfsdk:"end"`
+	Approval      types.String `tfsdk:"approval"`
+	State         types.String `tfsdk:"state"`
+	Message       types.String `tfsdk:"message"`
+	Error         types.String `tfsdk:"error"`
 }
 
 // Metadata returns the resource type name.
@@ -103,18 +88,9 @@ func (r *JobResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 				ElementType:         types.StringType,
 				MarkdownDescription: "Extra vars of a job.",
 			},
-			"credentials": schema.SingleNestedAttribute{
-				Optional: true,
-				Attributes: map[string]schema.Attribute{
-					"ontap_cred": schema.StringAttribute{
-						MarkdownDescription: "",
-						Optional:            true,
-					},
-					"cifs_cred": schema.StringAttribute{
-						MarkdownDescription: "",
-						Optional:            true,
-					},
-				},
+			"credentials": schema.MapAttribute{
+				Optional:            true,
+				ElementType:         types.StringType,
 				MarkdownDescription: "Credentials of a job.",
 			},
 			"last_updated": schema.StringAttribute{
@@ -144,20 +120,6 @@ func (r *JobResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 					stringplanmodifier.UseStateForUnknown(),
 				},
 				MarkdownDescription: "Output of a job.",
-			},
-			"counter": schema.Int64Attribute{
-				Computed: true,
-				PlanModifiers: []planmodifier.Int64{
-					int64planmodifier.UseStateForUnknown(),
-				},
-				MarkdownDescription: "Counter of a job.",
-			},
-			"no_of_records": schema.Int64Attribute{
-				Computed: true,
-				PlanModifiers: []planmodifier.Int64{
-					int64planmodifier.UseStateForUnknown(),
-				},
-				MarkdownDescription: "Number of records of a job.",
 			},
 			"start": schema.StringAttribute{
 				Computed: true,
@@ -246,16 +208,17 @@ func (r *JobResource) Create(ctx context.Context, req resource.CreateRequest, re
 		extravars[k] = v
 	}
 
+	var credentials = make(map[string]interface{})
+	for k, v := range data.Credentials.Elements() {
+		credentials[k] = v
+	}
+
 	extravars["state"] = data.State.ValueString()
 
 	request.Extravars = extravars
-	if data.Credentials != nil {
-		request.Credentials = &interfaces.CredentialsDataModel{
-			CifsCred:  data.Credentials.CifsCred.ValueString(),
-			OntapCred: data.Credentials.OntapCred.ValueString(),
-		}
-	}
-	if data.Credentials == nil || (data.Credentials.CifsCred.ValueString() == "" && data.Credentials.OntapCred.ValueString() == "") {
+	request.Credentials = credentials
+
+	if data.Credentials.IsNull() {
 		request.Credentials = nil
 	}
 
@@ -269,12 +232,6 @@ func (r *JobResource) Create(ctx context.Context, req resource.CreateRequest, re
 		return
 	}
 
-	elements := map[string]attr.Value{}
-
-	for key, value := range job.Data.Extravars {
-		elements[key] = types.StringValue(fmt.Sprintf("%s", value))
-	}
-
 	data.ID = types.Int64Value(job.Data.ID)
 	data.Start = types.StringValue(job.Data.Start)
 	data.End = types.StringValue(job.Data.End)
@@ -282,8 +239,6 @@ func (r *JobResource) Create(ctx context.Context, req resource.CreateRequest, re
 	data.LastUpdated = types.StringValue(time.Now().UTC().Format(time.RFC3339))
 	data.Target = types.StringValue(job.Data.Target)
 	data.Output = types.StringValue(job.Data.Output)
-	data.Counter = types.Int64Value(job.Data.Counter)
-	data.NoOfRecords = types.Int64Value(job.Data.NoOfRecords)
 	data.Approval = types.StringValue(fmt.Sprintf("%s", job.Data.Approval))
 	data.Message = types.StringValue(job.Message)
 	data.Error = types.StringValue(job.Data.Error)
@@ -340,12 +295,6 @@ func (r *JobResource) Read(ctx context.Context, req resource.ReadRequest, resp *
 	if job.Output != "" {
 		data.Output = types.StringValue(job.Output)
 	}
-	if job.Counter != 0 {
-		data.Counter = types.Int64Value(job.Counter)
-	}
-	if job.NoOfRecords != 0 {
-		data.NoOfRecords = types.Int64Value(job.NoOfRecords)
-	}
 	if job.Target != "" {
 		data.Target = types.StringValue(job.Target)
 	}
@@ -393,16 +342,17 @@ func (r *JobResource) Update(ctx context.Context, req resource.UpdateRequest, re
 		extravars[k] = v
 	}
 
+	var credentials = make(map[string]interface{})
+	for k, v := range data.Credentials.Elements() {
+		credentials[k] = v
+	}
+
 	extravars["state"] = data.State.ValueString()
 
 	request.Extravars = extravars
-	if data.Credentials != nil {
-		request.Credentials = &interfaces.CredentialsDataModel{
-			CifsCred:  data.Credentials.CifsCred.ValueString(),
-			OntapCred: data.Credentials.OntapCred.ValueString(),
-		}
-	}
-	if data.Credentials == nil || (data.Credentials.CifsCred.ValueString() == "" && data.Credentials.OntapCred.ValueString() == "") {
+	request.Credentials = credentials
+
+	if data.Credentials.IsNull() {
 		request.Credentials = nil
 	}
 
@@ -461,17 +411,18 @@ func (r *JobResource) Delete(ctx context.Context, req resource.DeleteRequest, re
 		extravars[k] = v
 	}
 
+	var credentials = make(map[string]interface{})
+	for k, v := range data.Credentials.Elements() {
+		credentials[k] = v
+	}
+
 	extravars["state"] = "absent"
 
 	var request interfaces.JobResourceModel
 	request.Extravars = extravars
-	if data.Credentials != nil {
-		request.Credentials = &interfaces.CredentialsDataModel{
-			CifsCred:  data.Credentials.CifsCred.ValueString(),
-			OntapCred: data.Credentials.OntapCred.ValueString(),
-		}
-	}
-	if data.Credentials == nil || (data.Credentials.CifsCred.ValueString() == "" && data.Credentials.OntapCred.ValueString() == "") {
+	request.Credentials = credentials
+
+	if data.Credentials.IsNull() {
 		request.Credentials = nil
 	}
 

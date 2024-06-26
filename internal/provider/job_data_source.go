@@ -31,20 +31,20 @@ func NewJobDataSource() datasource.DataSource {
 
 // JobDataSourceModel maps the resource schema data.
 type JobDataSourceModel struct {
-	CxProfileName types.String                `tfsdk:"cx_profile_name"`
-	ID            types.Int64                 `tfsdk:"id"`
-	LastUpdated   types.String                `tfsdk:"last_updated"`
-	FormName      types.String                `tfsdk:"form_name"`
-	Status        types.String                `tfsdk:"status"`
-	Extravars     types.Dynamic               `tfsdk:"extravars"`
-	Credentials   *CredentialsDataSourceModel `tfsdk:"credentials"`
-	Target        types.String                `tfsdk:"target"`
-	Output        types.String                `tfsdk:"output"`
-	Counter       types.Int64                 `tfsdk:"counter"`
-	NoOfRecords   types.Int64                 `tfsdk:"no_of_records"`
-	Start         types.String                `tfsdk:"start"`
-	End           types.String                `tfsdk:"end"`
-	Approval      types.String                `tfsdk:"approval"`
+	CxProfileName types.String  `tfsdk:"cx_profile_name"`
+	ID            types.Int64   `tfsdk:"id"`
+	LastUpdated   types.String  `tfsdk:"last_updated"`
+	FormName      types.String  `tfsdk:"form_name"`
+	Status        types.String  `tfsdk:"status"`
+	Extravars     types.Dynamic `tfsdk:"extravars"`
+	Credentials   types.Dynamic `tfsdk:"credentials"`
+	Target        types.String  `tfsdk:"target"`
+	Output        types.String  `tfsdk:"output"`
+	Counter       types.Int64   `tfsdk:"counter"`
+	NoOfRecords   types.Int64   `tfsdk:"no_of_records"`
+	Start         types.String  `tfsdk:"start"`
+	End           types.String  `tfsdk:"end"`
+	Approval      types.String  `tfsdk:"approval"`
 }
 
 // Metadata returns the data source type name.
@@ -105,15 +105,6 @@ func (d *JobDataSource) Schema(ctx context.Context, req datasource.SchemaRequest
 			"output": schema.StringAttribute{
 				Computed:            true,
 				MarkdownDescription: "Output of a job.",
-			},
-			"counter": schema.Int64Attribute{
-				Computed: true,
-
-				MarkdownDescription: "Counter of a job.",
-			},
-			"no_of_records": schema.Int64Attribute{
-				Computed:            true,
-				MarkdownDescription: "Number of records of a job.",
 			},
 			"start": schema.StringAttribute{
 				Computed:            true,
@@ -176,12 +167,8 @@ func (d *JobDataSource) Read(ctx context.Context, req datasource.ReadRequest, re
 		data.ID = types.Int64Value(restInfo.ID)
 		data.FormName = types.StringValue(restInfo.Form)
 		data.Status = types.StringValue(restInfo.Status)
-		//data.Credentials.CifsCred = types.StringValue(restInfo.Credentials.CifsCred)
-		//data.Credentials.OntapCred = types.StringValue(restInfo.Credentials.OntapCred)
 		data.Target = types.StringValue(restInfo.Target)
 		data.Output = types.StringValue(restInfo.Output)
-		data.Counter = types.Int64Value(restInfo.Counter)
-		data.NoOfRecords = types.Int64Value(restInfo.NoOfRecords)
 		data.Start = types.StringValue(restInfo.Start)
 		data.End = types.StringValue(restInfo.End)
 		data.Approval = types.StringValue(fmt.Sprintf("%s", restInfo.Approval))
