@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"html"
 	"terraform-provider-ansible-forms/internal/interfaces"
 	"terraform-provider-ansible-forms/internal/utils"
 	"time"
@@ -18,6 +19,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
+	"github.com/microcosm-cc/bluemonday"
 )
 
 // Ensure the implementation satisfies the expected interfaces.
@@ -238,7 +240,7 @@ func (r *JobResource) Create(ctx context.Context, req resource.CreateRequest, re
 	data.Status = types.StringValue(job.Data.Status)
 	data.LastUpdated = types.StringValue(time.Now().UTC().Format(time.RFC3339))
 	data.Target = types.StringValue(job.Data.Target)
-	data.Output = types.StringValue(job.Data.Output)
+	data.Output = types.StringValue(html.UnescapeString(bluemonday.StrictPolicy().Sanitize(job.Data.Output)))
 	data.Approval = types.StringValue(fmt.Sprintf("%s", job.Data.Approval))
 	data.Message = types.StringValue(job.Message)
 	data.Error = types.StringValue(job.Data.Error)
@@ -293,7 +295,7 @@ func (r *JobResource) Read(ctx context.Context, req resource.ReadRequest, resp *
 	//data.Extravars = jsonStringToMapValue(ctx, &resp.Diagnostics, restInfo.JobGetDataSourceModel.Extravars)
 	//data.Credentials = jsonStringToMapValue(ctx, &resp.Diagnostics, restInfo.JobGetDataSourceModel.Credentials)
 	if job.Output != "" {
-		data.Output = types.StringValue(job.Output)
+		data.Output = types.StringValue(html.UnescapeString(bluemonday.StrictPolicy().Sanitize(job.Output)))
 	}
 	if job.Target != "" {
 		data.Target = types.StringValue(job.Target)
