@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"html"
 	"math/big"
 	"net/url"
 	"strings"
 	"time"
 
 	"github.com/hashicorp/terraform-plugin-log/tflog"
+	"github.com/microcosm-cc/bluemonday"
 	"github.com/mitchellh/mapstructure"
 
 	"terraform-provider-ansible-forms/internal/restclient/httpclient"
@@ -107,7 +109,9 @@ check:
 			case AnsibleStatusSuccess:
 				break check
 			case AnsibleStatusFailure:
-				return "", RestResponse{}, fmt.Errorf("when checking job status, Ansible returned failure")
+				output := restInfo["data"].(map[string]any)["output"].(string)
+				text := errors.New(html.UnescapeString(bluemonday.StrictPolicy().Sanitize(output)))
+				return "", RestResponse{}, fmt.Errorf("when checking job status, Ansible returned failure (details below):\n%w", text)
 			default:
 				return "", RestResponse{}, fmt.Errorf("when checking job status, Ansible returned an unexpected status - %s", status)
 			}
